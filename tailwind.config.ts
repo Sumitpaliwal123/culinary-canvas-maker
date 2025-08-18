@@ -26,7 +26,9 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					gold: 'hsl(var(--primary-gold))',
+					'gold-foreground': 'hsl(var(--primary-gold-foreground))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -51,6 +53,13 @@ export default {
 				card: {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
+				},
+				// Restaurant menu specific colors
+				menu: {
+					header: 'hsl(var(--menu-header))',
+					category: 'hsl(var(--menu-category))',
+					price: 'hsl(var(--menu-price))',
+					description: 'hsl(var(--menu-description))'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
