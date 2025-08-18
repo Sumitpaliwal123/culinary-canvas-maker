@@ -1,295 +1,515 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { ChefHat, Utensils, Sparkles } from "lucide-react";
+import React, { useMemo, useState } from "react";
 
-interface Dish {
-  name: string;
-  description: string;
-  price: string;
+// =============================
+// Restaurant Menu Generator App
+// Elegant design using project's design system
+// =============================
+
+// Button component with variants
+function Button({
+  children,
+  onClick,
+  variant = "primary",
+  type = "button",
+  className = "",
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  variant?: "primary" | "secondary" | "ghost";
+  type?: "button" | "submit" | "reset";
+  className?: string;
+  disabled?: boolean;
+}) {
+  const base =
+    "inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm";
+  const variants: Record<string, string> = {
+    primary:
+      "bg-primary-gold text-primary-gold-foreground hover:opacity-90 focus:ring-primary-gold",
+    secondary:
+      "bg-primary text-primary-foreground hover:opacity-90 focus:ring-primary",
+    ghost:
+      "bg-transparent text-menu-header hover:bg-secondary focus:ring-primary-gold",
+  };
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${base} ${variants[variant]} ${className}`}
+    >
+      {children}
+    </button>
+  );
 }
 
-interface MenuCategory {
-  name: string;
-  dishes: Dish[];
-}
+// Types
+type Dish = { name: string; description: string; price: string };
+type MenuCategory = { name: string; dishes: Dish[] };
 
-interface MenuData {
+type GeneratedMenu = {
   restaurantName: string;
   cuisineType: string;
   categories: MenuCategory[];
-}
+};
 
-const generateDish = (cuisineType: string, categoryName: string): Dish => {
-  const dishes: Record<string, Record<string, Dish[]>> = {
-    "Italian": {
-      "Starters": [
-        { name: "Burrata Caprese", description: "Creamy burrata with heirloom tomatoes, basil oil, and aged balsamic", price: "₹850" },
-        { name: "Antipasto Royale", description: "Curated selection of Italian meats, cheeses, and marinated vegetables", price: "₹1200" },
-        { name: "Arancini Trio", description: "Crispy risotto balls with truffle, mushroom, and spinach fillings", price: "₹750" }
-      ],
-      "Main Course": [
-        { name: "Osso Buco Milanese", description: "Slow-braised veal shank with saffron risotto and gremolata", price: "₹2400" },
-        { name: "Lobster Ravioli", description: "Handmade pasta filled with Maine lobster in champagne cream sauce", price: "₹2200" },
-        { name: "Bistecca Fiorentina", description: "Grilled T-bone steak with rosemary, garlic, and Tuscan herbs", price: "₹2800" }
-      ],
-      "Desserts": [
-        { name: "Tiramisu Perfetto", description: "Classic layered dessert with espresso-soaked ladyfingers and mascarpone", price: "₹650" },
-        { name: "Gelato Affogato", description: "Vanilla gelato 'drowned' in hot espresso with amaretti crumbles", price: "₹550" }
-      ]
-    },
-    "Japanese": {
-      "Starters": [
-        { name: "Tuna Tataki", description: "Seared bluefin tuna with ponzu, daikon radish, and microgreens", price: "₹1400" },
-        { name: "Gyoza Selection", description: "Pan-fried dumplings with pork, shrimp, and vegetable varieties", price: "₹850" },
-        { name: "Miso Soup Premium", description: "Traditional soup with wakame, tofu, and seasonal mushrooms", price: "₹450" }
-      ],
-      "Main Course": [
-        { name: "Omakase Sushi", description: "Chef's selection of 12 pieces of premium nigiri and specialty rolls", price: "₹3200" },
-        { name: "Wagyu Teppanyaki", description: "A5 grade wagyu beef grilled tableside with seasonal vegetables", price: "₹4500" },
-        { name: "Black Cod Miso", description: "Miso-marinated cod with shiitake mushrooms and baby bok choy", price: "₹2600" }
-      ],
-      "Desserts": [
-        { name: "Matcha Mille-feuille", description: "Delicate pastry layers with matcha cream and red bean filling", price: "₹750" },
-        { name: "Mochi Ice Cream", description: "Traditional rice cake filled with premium ice cream, three flavors", price: "₹550" }
-      ]
-    },
-    "French": {
-      "Starters": [
-        { name: "Foie Gras Terrine", description: "House-made terrine with fig compote and toasted brioche", price: "₹1800" },
-        { name: "Escargots de Bourgogne", description: "Six Burgundy snails in garlic-parsley butter", price: "₹1200" },
-        { name: "Soup à l'Oignon", description: "Classic French onion soup with Gruyère crouton", price: "₹650" }
-      ],
-      "Main Course": [
-        { name: "Coq au Vin", description: "Braised chicken in red wine with pearl onions and mushrooms", price: "₹2200" },
-        { name: "Bouillabaisse Marseillaise", description: "Traditional fish stew with saffron rouille and crusty bread", price: "₹2800" },
-        { name: "Duck Confit", description: "Slow-cooked duck leg with garlic potatoes and cherry gastrique", price: "₹2400" }
-      ],
-      "Desserts": [
-        { name: "Crème Brûlée", description: "Vanilla custard with caramelized sugar and fresh berries", price: "₹750" },
-        { name: "Tarte Tatin", description: "Upside-down apple tart with cinnamon ice cream", price: "₹650" }
-      ]
-    }
-  };
+// Utility: currency to INR by default
+const formatINR = (num: number) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
+    num
+  );
 
-  const fallbackDishes: Record<string, Dish[]> = {
-    "Starters": [
-      { name: "Chef's Special Appetizer", description: "Seasonal ingredients prepared with culinary expertise and artistic flair", price: "₹750" },
-      { name: "Artisan Soup", description: "House-made soup featuring fresh, locally-sourced ingredients", price: "₹550" }
+// Sample curated dishes for 3 cuisines + fallback
+const curatedDishes: Record<string, Record<string, Dish[]>> = {
+  Italian: {
+    Starters: [
+      {
+        name: "Burrata Caprese",
+        description:
+          "Creamy burrata, heirloom tomatoes, basil oil, aged balsamic",
+        price: formatINR(850),
+      },
+      {
+        name: "Antipasto Royale",
+        description: "Cured meats, cheeses, marinated vegetables",
+        price: formatINR(1200),
+      },
+      {
+        name: "Arancini Trio",
+        description: "Crispy risotto balls: truffle, mushroom, spinach",
+        price: formatINR(750),
+      },
     ],
     "Main Course": [
-      { name: "Signature Entrée", description: "Our chef's masterpiece combining traditional techniques with modern flavors", price: "₹1800" },
-      { name: "Premium Selection", description: "Carefully curated dish showcasing the finest seasonal ingredients", price: "₹2200" }
+      {
+        name: "Osso Buco Milanese",
+        description: "Braised veal shank, saffron risotto, gremolata",
+        price: formatINR(2400),
+      },
+      {
+        name: "Lobster Ravioli",
+        description: "Handmade pasta, champagne cream sauce",
+        price: formatINR(2200),
+      },
+      {
+        name: "Bistecca Fiorentina",
+        description: "Grilled T-bone, rosemary, Tuscan herbs",
+        price: formatINR(2800),
+      },
     ],
-    "Desserts": [
-      { name: "Decadent Finale", description: "Exquisite dessert crafted to provide the perfect end to your meal", price: "₹650" }
+    Desserts: [
+      {
+        name: "Tiramisu Perfetto",
+        description: "Espresso-soaked ladyfingers, mascarpone",
+        price: formatINR(650),
+      },
+      {
+        name: "Gelato Affogato",
+        description: "Vanilla gelato with hot espresso",
+        price: formatINR(550),
+      },
     ],
-    "Beverages": [
-      { name: "Craft Cocktail", description: "Artisanal cocktail made with premium spirits and fresh ingredients", price: "₹750" },
-      { name: "Premium Wine", description: "Carefully selected wine to complement your dining experience", price: "₹1200" }
-    ]
-  };
+  },
+  Japanese: {
+    Starters: [
+      {
+        name: "Tuna Tataki",
+        description: "Seared tuna, ponzu, daikon, microgreens",
+        price: formatINR(1400),
+      },
+      {
+        name: "Gyoza Selection",
+        description: "Pork, shrimp and vegetable dumplings",
+        price: formatINR(850),
+      },
+      {
+        name: "Miso Soup Premium",
+        description: "Wakame, tofu, seasonal mushrooms",
+        price: formatINR(450),
+      },
+    ],
+    "Main Course": [
+      {
+        name: "Omakase Sushi",
+        description: "Chef's 12-piece premium nigiri & rolls",
+        price: formatINR(3200),
+      },
+      {
+        name: "Wagyu Teppanyaki",
+        description: "A5 Wagyu, grilled with seasonal vegetables",
+        price: formatINR(4500),
+      },
+      {
+        name: "Black Cod Miso",
+        description: "Miso-marinated cod, shiitake, bok choy",
+        price: formatINR(2600),
+      },
+    ],
+    Desserts: [
+      {
+        name: "Matcha Mille-feuille",
+        description: "Delicate pastry, matcha cream, red bean",
+        price: formatINR(750),
+      },
+      {
+        name: "Mochi Ice Cream",
+        description: "Trio of seasonal flavors",
+        price: formatINR(550),
+      },
+    ],
+  },
+  French: {
+    Starters: [
+      {
+        name: "Foie Gras Terrine",
+        description: "Fig compote, toasted brioche",
+        price: formatINR(1800),
+      },
+      {
+        name: "Escargots de Bourgogne",
+        description: "Burgundy snails, garlic–parsley butter",
+        price: formatINR(1200),
+      },
+      {
+        name: "Soupe à l'Oignon",
+        description: "French onion soup, Gruyère crouton",
+        price: formatINR(650),
+      },
+    ],
+    "Main Course": [
+      {
+        name: "Coq au Vin",
+        description: "Chicken braised in red wine, mushrooms",
+        price: formatINR(2200),
+      },
+      {
+        name: "Bouillabaisse Marseillaise",
+        description: "Saffron fish stew, rouille, bread",
+        price: formatINR(2800),
+      },
+      {
+        name: "Duck Confit",
+        description: "Slow-cooked leg, garlic potatoes, cherry gastrique",
+        price: formatINR(2400),
+      },
+    ],
+    Desserts: [
+      {
+        name: "Crème Brûlée",
+        description: "Vanilla custard, caramelized sugar",
+        price: formatINR(750),
+      },
+      {
+        name: "Tarte Tatin",
+        description: "Upside-down apple tart, cinnamon ice cream",
+        price: formatINR(650),
+      },
+    ],
+  },
+};
 
-  const cuisineDishes = dishes[cuisineType];
-  if (cuisineDishes && cuisineDishes[categoryName]) {
-    const availableDishes = cuisineDishes[categoryName];
-    return availableDishes[Math.floor(Math.random() * availableDishes.length)];
+const fallbackByCategory: Record<string, Dish[]> = {
+  Starters: [
+    {
+      name: "Chef's Special Appetizer",
+      description: "Seasonal ingredients with artistic flair",
+      price: formatINR(750),
+    },
+    {
+      name: "Artisan Soup",
+      description: "House-made soup with local produce",
+      price: formatINR(550),
+    },
+  ],
+  "Main Course": [
+    {
+      name: "Signature Entrée",
+      description: "Classic technique, modern flavors",
+      price: formatINR(1800),
+    },
+    {
+      name: "Premium Selection",
+      description: "Curated seasonal specialty",
+      price: formatINR(2200),
+    },
+  ],
+  Desserts: [
+    {
+      name: "Decadent Finale",
+      description: "Exquisite dessert to end your meal",
+      price: formatINR(650),
+    },
+  ],
+  Beverages: [
+    {
+      name: "Craft Cocktail",
+      description: "Artisanal blend with premium spirits",
+      price: formatINR(750),
+    },
+    {
+      name: "Premium Wine",
+      description: "Sommelier-selected pairing",
+      price: formatINR(1200),
+    },
+  ],
+};
+
+function pickDish(cuisine: string, category: string): Dish {
+  const cuisineData = curatedDishes[cuisine as keyof typeof curatedDishes];
+  if (cuisineData && cuisineData[category]) {
+    const arr = cuisineData[category];
+    return arr[Math.floor(Math.random() * arr.length)];
   }
-  
-  const fallback = fallbackDishes[categoryName] || fallbackDishes["Main Course"];
-  return fallback[Math.floor(Math.random() * fallback.length)];
-};
+  const fb = fallbackByCategory[category] || fallbackByCategory["Main Course"];
+  return fb[Math.floor(Math.random() * fb.length)];
+}
 
-const generateCategoryName = (index: number): string => {
-  const categoryNames = [
-    "Starters", "Main Course", "Desserts", "Beverages",
-    "Appetizers", "Soups", "Salads", "Specialties",
-    "Signature Dishes", "Seasonal Menu", "Chef's Selection", "Premium Selection"
-  ];
-  return categoryNames[index] || `Category ${index + 1}`;
-};
+const defaultCategoryNames = [
+  "Starters",
+  "Main Course",
+  "Desserts",
+  "Beverages",
+  "Appetizers",
+  "Soups",
+  "Salads",
+  "Specialties",
+  "Signature Dishes",
+  "Seasonal Menu",
+  "Chef's Selection",
+  "Premium Selection",
+];
 
 export function MenuGenerator() {
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     restaurantName: "",
-    cuisineType: "",
-    numberOfCategories: 3,
-    dishesPerCategory: 3
+    cuisineType: "Italian",
+    categories: 3,
+    dishesPerCategory: 3,
   });
-  
-  const [generatedMenu, setGeneratedMenu] = useState<MenuData | null>(null);
+
+  const [menu, setMenu] = useState<GeneratedMenu | null>(null);
 
   const handleGenerate = () => {
-    const categories: MenuCategory[] = [];
-    
-    for (let i = 0; i < formData.numberOfCategories; i++) {
-      const categoryName = generateCategoryName(i);
+    const cats: MenuCategory[] = [];
+    for (let i = 0; i < Math.max(1, Math.min(form.categories, 12)); i++) {
+      const name = defaultCategoryNames[i] || `Category ${i + 1}`;
       const dishes: Dish[] = [];
-      
-      for (let j = 0; j < formData.dishesPerCategory; j++) {
-        dishes.push(generateDish(formData.cuisineType, categoryName));
+      for (
+        let j = 0;
+        j < Math.max(1, Math.min(form.dishesPerCategory, 10));
+        j++
+      ) {
+        dishes.push(pickDish(form.cuisineType, name));
       }
-      
-      categories.push({
-        name: categoryName,
-        dishes
-      });
+      cats.push({ name, dishes });
     }
-
-    setGeneratedMenu({
-      restaurantName: formData.restaurantName || "Fine Dining Restaurant",
-      cuisineType: formData.cuisineType || "International",
-      categories
+    setMenu({
+      restaurantName: form.restaurantName || "Fine Dining Restaurant",
+      cuisineType: form.cuisineType || "International",
+      categories: cats,
     });
   };
 
+  const today = useMemo(
+    () => new Date().toLocaleDateString("en-IN", { dateStyle: "medium" }),
+    []
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary to-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <ChefHat className="h-10 w-10 text-primary-gold" />
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-menu-header to-primary-gold bg-clip-text text-transparent" 
-                style={{ fontFamily: 'var(--font-elegant)' }}>
-              Menu Designer
-            </h1>
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Fonts */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600;700&display=swap');
+        .font-display{font-family:'Playfair Display',serif}
+        .font-sans{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans','Apple Color Emoji','Segoe UI Emoji',sans-serif}
+        @media print{ .no-print{ display:none !important } body{ background:white } }
+      `}</style>
+
+      {/* Header */}
+      <header className="no-print sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
+        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent shadow-elegant" />
+            <div>
+              <h1 className="font-display text-xl tracking-wide text-menu-header">Menu Designer</h1>
+              <p className="text-xs text-muted-foreground">Professional Restaurant Menu Generator</p>
+            </div>
           </div>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Create beautiful, professional restaurant menus with elegant formatting and compelling descriptions
-          </p>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" onClick={() => window.print()}>Print / Export PDF</Button>
+            <Button variant="secondary" onClick={handleGenerate}>Generate Menu</Button>
+          </div>
         </div>
+      </header>
 
-        <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
-          {/* Generator Form */}
-          <Card className="shadow-elegant">
-            <CardHeader className="bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-t-lg">
-              <CardTitle className="flex items-center gap-2">
-                <Utensils className="h-5 w-5" />
-                Menu Configuration
-              </CardTitle>
-              <CardDescription className="text-primary-foreground/80">
-                Customize your restaurant menu specifications
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="restaurantName">Restaurant Name</Label>
-                <Input
-                  id="restaurantName"
-                  placeholder="Enter restaurant name..."
-                  value={formData.restaurantName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, restaurantName: e.target.value }))}
-                  className="focus:ring-primary-gold"
+      {/* Main */}
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-2">
+        {/* Config Panel */}
+        <section className="no-print rounded-lg border bg-card p-5 shadow-elegant">
+          <div className="mb-4">
+            <h2 className="font-display text-lg text-menu-header">Menu Configuration</h2>
+            <p className="text-sm text-muted-foreground">
+              Customize your restaurant menu specifications
+            </p>
+          </div>
+
+          <form
+            className="grid grid-cols-1 gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleGenerate();
+            }}
+          >
+            <label className="grid gap-1">
+              <span className="text-sm font-medium">Restaurant Name</span>
+              <input
+                value={form.restaurantName}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, restaurantName: e.target.value }))
+                }
+                placeholder="e.g., La Maison de Sumit"
+                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+            </label>
+
+            <label className="grid gap-1">
+              <span className="text-sm font-medium">Cuisine Type</span>
+              <input
+                value={form.cuisineType}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, cuisineType: e.target.value }))
+                }
+                placeholder="Italian / Japanese / French / Custom"
+                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-4">
+              <label className="grid gap-1">
+                <span className="text-sm font-medium">Number of Categories</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={form.categories}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      categories: Math.max(1, Math.min(12, Number(e.target.value) || 1)),
+                    }))
+                  }
+                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
-              </div>
+              </label>
 
-              <div className="space-y-2">
-                <Label htmlFor="cuisineType">Cuisine Type</Label>
-                <Input
-                  id="cuisineType"
-                  placeholder="e.g., Italian, Japanese, French..."
-                  value={formData.cuisineType}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cuisineType: e.target.value }))}
-                  className="focus:ring-primary-gold"
+              <label className="grid gap-1">
+                <span className="text-sm font-medium">Dishes per Category</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={form.dishesPerCategory}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      dishesPerCategory: Math.max(
+                        1,
+                        Math.min(10, Number(e.target.value) || 1)
+                      ),
+                    }))
+                  }
+                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
-              </div>
+              </label>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="categories">Number of Categories</Label>
-                  <Input
-                    id="categories"
-                    type="number"
-                    min="1"
-                    max="8"
-                    value={formData.numberOfCategories}
-                    onChange={(e) => setFormData(prev => ({ ...prev, numberOfCategories: parseInt(e.target.value) || 3 }))}
-                    className="focus:ring-primary-gold"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="dishes">Dishes per Category</Label>
-                  <Input
-                    id="dishes"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.dishesPerCategory}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dishesPerCategory: parseInt(e.target.value) || 3 }))}
-                    className="focus:ring-primary-gold"
-                  />
-                </div>
-              </div>
-
-              <Button 
-                onClick={handleGenerate}
-                className="w-full bg-gradient-to-r from-primary-gold to-primary-gold/80 hover:from-primary-gold/90 hover:to-primary-gold/70 text-primary-gold-foreground font-semibold py-3"
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
+            <div className="mt-2 flex gap-3">
+              <Button type="submit" variant="primary">
                 Generate Menu
               </Button>
-            </CardContent>
-          </Card>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setMenu(null)}
+              >
+                Clear
+              </Button>
+            </div>
+          </form>
+        </section>
 
-          {/* Generated Menu Display */}
-          {generatedMenu && (
-            <Card className="shadow-menu">
-              <CardContent className="p-8">
-                <div className="text-center mb-8">
-                  <h2 className="text-4xl font-bold text-menu-header mb-2" 
-                      style={{ fontFamily: 'var(--font-elegant)' }}>
-                    {generatedMenu.restaurantName}
-                  </h2>
-                  <p className="text-lg text-primary-gold font-medium">
-                    {generatedMenu.cuisineType} Cuisine
-                  </p>
-                  <Separator className="mt-4 bg-gradient-to-r from-transparent via-primary-gold to-transparent" />
+        {/* Menu Preview (Printable) */}
+        <section className="rounded-lg border bg-card p-6 shadow-elegant print:shadow-none">
+          {/* Cover / Header */}
+          <div className="border-b pb-5">
+            <h2 className="font-display text-3xl tracking-wide text-menu-header">
+              {menu?.restaurantName || "Fine Dining Restaurant"}
+            </h2>
+            <div className="mt-1 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {menu?.cuisineType || form.cuisineType} Cuisine
+              </span>
+              <span className="text-muted-foreground">{today}</span>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="mt-6 space-y-8">
+            {(menu?.categories || []).length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Configure your menu on the left, then click <strong>Generate Menu</strong>.
+              </p>
+            )}
+
+            {(menu?.categories || []).map((cat, idx) => (
+              <div key={idx}>
+                <div className="mb-3 flex items-end justify-between">
+                  <h3 className="font-display text-2xl text-menu-category">
+                    {cat.name}
+                  </h3>
+                  <div className="h-px flex-1 mx-4 bg-gradient-to-r from-primary-gold to-transparent" />
                 </div>
 
-                <div className="space-y-8">
-                  {generatedMenu.categories.map((category, categoryIndex) => (
-                    <div key={categoryIndex} className="space-y-4">
-                      <h3 className="text-2xl font-semibold text-menu-category text-center" 
-                          style={{ fontFamily: 'var(--font-elegant)' }}>
-                        {category.name}
-                      </h3>
-                      
-                      <div className="space-y-3">
-                        {category.dishes.map((dish, dishIndex) => (
-                          <div key={dishIndex} className="border-b border-border/50 pb-3 last:border-b-0">
-                            <div className="flex justify-between items-start gap-4">
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-foreground mb-1">
-                                  {dish.name}
-                                </h4>
-                                <p className="text-sm text-menu-description leading-relaxed">
-                                  {dish.description}
-                                </p>
-                              </div>
-                              <div className="text-lg font-bold text-menu-price flex-shrink-0">
-                                {dish.price}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                <ul className="grid gap-3">
+                  {cat.dishes.map((d, i) => (
+                    <li
+                      key={i}
+                      className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-lg px-3 py-2 hover:bg-muted/50"
+                    >
+                      <div>
+                        <div className="font-display text-lg leading-tight text-menu-header">
+                          {d.name}
+                        </div>
+                        <p className="font-sans text-sm text-menu-description">
+                          {d.description}
+                        </p>
                       </div>
-                      
-                      {categoryIndex < generatedMenu.categories.length - 1 && (
-                        <Separator className="my-6 bg-gradient-to-r from-transparent via-border to-transparent" />
-                      )}
-                    </div>
+                      <div className="font-sans text-sm font-medium text-menu-price">
+                        {d.price}
+                      </div>
+                    </li>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+                </ul>
+              </div>
+            ))}
+
+            {/* Empty state */}
+            {!menu && (
+              <div className="rounded-lg border border-dashed p-6 text-center">
+                <h3 className="font-display text-xl text-menu-header">Your menu will appear here</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Enter details and click <em>Generate Menu</em> to preview a beautifully formatted menu.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <footer className="mt-8 border-t pt-4 text-right text-xs text-muted-foreground">
+            Designed with care • Menu Designer
+          </footer>
+        </section>
+      </main>
     </div>
   );
 }
