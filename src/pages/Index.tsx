@@ -1,4 +1,4 @@
-import { MenuGenerator } from "@/components/MenuGenerator";
+import MenuGenerator from "@/components/MenuGenerator";
 
 const Index = () => {
   return <MenuGenerator />;

@@ -279,7 +279,7 @@ const defaultCategoryNames = [
   "Premium Selection",
 ];
 
-export function MenuGenerator() {
+export default function MenuGenerator() {
   const [form, setForm] = useState({
     restaurantName: "",
     cuisineType: "Italian",
